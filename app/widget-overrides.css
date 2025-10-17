@@ -1,0 +1,27 @@
+/* AutoAssistPro Widget Input Styling Fix */
+
+/* Fix input text color */
+#autoassistpro-widget-root input {
+  color: #1f2937 !important; /* Dark gray for actual text */
+}
+
+/* Fix placeholder color */
+#autoassistpro-widget-root input::placeholder {
+  color: #9ca3af !important;
+  opacity: 1 !important;
+}
+
+#autoassistpro-widget-root input::-webkit-input-placeholder {
+  color: #9ca3af !important;
+  opacity: 1 !important;
+}
+
+#autoassistpro-widget-root input::-moz-placeholder {
+  color: #9ca3af !important;
+  opacity: 1 !important;
+}
+
+#autoassistpro-widget-root input:-ms-input-placeholder {
+  color: #9ca3af !important;
+  opacity: 1 !important;
+}
