@@ -292,10 +292,24 @@ useEffect(() => {
         );
       case 'analytics':
         return <AnalyticsTab />;
-      case 'profile':  // NEW CASE
+      case 'profile':
+        // Get username from session storage
+        const getUsername = () => {
+          try {
+            const session = localStorage.getItem('techequity-admin-session');
+            if (session) {
+              const parsed = JSON.parse(session);
+              return parsed.user?.username || 'User';
+            }
+          } catch (error) {
+            console.error('Error reading username from session:', error);
+          }
+          return 'User';
+        };
+
         return (
           <ProfileTab
-            currentUsername={loginForm.username || 'gabriel'}
+            currentUsername={getUsername()}
             onSuccess={(message) => setNotification({ type: 'success', message })}
             onError={(message) => setNotification({ type: 'error', message })}
           />

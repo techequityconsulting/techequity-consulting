@@ -81,7 +81,10 @@ export const ProfileTab = ({ currentUsername, onSuccess, onError }: ProfileTabPr
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${apiKey}`
         },
-        body: JSON.stringify({ newUsername: newUsername.trim() })
+        body: JSON.stringify({
+          currentUsername,
+          newUsername: newUsername.trim()
+        })
       });
 
       const result = await response.json();
