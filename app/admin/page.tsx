@@ -1,8 +1,7 @@
-// src/app/admin/page.tsx - FIXED: Authentication timing issue + appointment modal state clearing
 
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { ActiveTab, Notification, Appointment } from './types';
 import { useAuth } from './hooks/useAuth';
 import { useAppointments } from './hooks/useAppointments/index';
@@ -33,6 +32,9 @@ export default function AdminPanel() {
   const [notification, setNotification] = useState<Notification | null>(null);
   // Track chat logs delete confirmation state
   const [isChatDeleteModalOpen, setIsChatDeleteModalOpen] = useState(false);
+  
+  // ✅ NEW: Use ref to track modal state synchronously
+  const isChatDeleteModalOpenRef = useRef(false);
   
   // Appointment modal state
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
@@ -153,6 +155,13 @@ export default function AdminPanel() {
     await chatLogs.deleteConversation(sessionId);
   };
 
+  // ✅ CRITICAL FIX: Update both state and ref synchronously
+  const handleChatDeleteModalChange = useCallback((isOpen: boolean) => {
+    console.log('🔔 Chat delete modal state changed:', isOpen);
+    isChatDeleteModalOpenRef.current = isOpen;
+    setIsChatDeleteModalOpen(isOpen);
+  }, []);
+
   // Load data ONLY when authenticated AND auth headers are available
   useEffect(() => {
     if (isAuthenticated) {
@@ -186,46 +195,55 @@ export default function AdminPanel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]); // Only re-run when authentication state changes
 
-// FIXED: Graceful polling effect - pauses when modals are open
-useEffect(() => {
-  if (!isAuthenticated || !checkAuthStatus()) {
-    return;
-  }
+  // ✅ CRITICAL FIX: Use ref for synchronous check to prevent race condition
+  useEffect(() => {
+    if (!isAuthenticated || !checkAuthStatus()) {
+      return;
+    }
 
-  // ✅ CRITICAL FIX: Don't poll if ANY modal is open
-  const isAnyModalOpen = 
-    isChatDeleteModalOpen || 
-    showAppointmentModal || 
-    appointments.showDeleteConfirmation ||
-    appointments.editingAppointment !== null ||  // ✅ NEW: Check if edit modal is open
-    chatLogs.selectedSession !== null;           // ✅ NEW: Check if conversation detail is open
-
-  if ((activeTab === 'bookings' || activeTab === 'chat-logs') && !isAnyModalOpen) {
-    const pollInterval = setInterval(async () => {
-      try {
-        // Silent refresh - no notifications during background polling
-        await handleGlobalRefresh(true);
-      } catch (error) {
-        console.error('Polling update failed:', error);
-      }
-    }, 5000); // 5 seconds for near-instant widget booking updates
-
-    console.log(`Started fast polling for ${activeTab} tab (5s interval)`);
-    return () => {
-      clearInterval(pollInterval);
-      console.log(`Stopped polling for ${activeTab} tab`);
+    // Check modal state using BOTH ref (synchronous) and state (for re-renders)
+    const checkIfAnyModalOpen = () => {
+      return (
+        isChatDeleteModalOpenRef.current ||  // ✅ FIXED: Use ref for immediate check
+        showAppointmentModal || 
+        appointments.showDeleteConfirmation ||
+        appointments.editingAppointment !== null ||
+        chatLogs.selectedSession !== null
+      );
     };
-  }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [
-  isAuthenticated, 
-  activeTab, 
-  isChatDeleteModalOpen, 
-  showAppointmentModal, 
-  appointments.showDeleteConfirmation,
-  appointments.editingAppointment,  // ✅ NEW: Add to dependency array
-  chatLogs.selectedSession           // ✅ NEW: Add to dependency array
-]);
+
+    if ((activeTab === 'bookings' || activeTab === 'chat-logs')) {
+      const pollInterval = setInterval(async () => {
+        // ✅ FIXED: Check modal state inside interval to catch any changes
+        if (checkIfAnyModalOpen()) {
+          console.log('⏸️ Polling paused - modal is open');
+          return;
+        }
+
+        try {
+          // Silent refresh - no notifications during background polling
+          await handleGlobalRefresh(true);
+        } catch (error) {
+          console.error('Polling update failed:', error);
+        }
+      }, 5000); // 5 seconds for near-instant widget booking updates
+
+      console.log(`Started fast polling for ${activeTab} tab (5s interval)`);
+      return () => {
+        clearInterval(pollInterval);
+        console.log(`Stopped polling for ${activeTab} tab`);
+      };
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    isAuthenticated, 
+    activeTab, 
+    showAppointmentModal, 
+    appointments.showDeleteConfirmation,
+    appointments.editingAppointment,
+    chatLogs.selectedSession
+    // Note: isChatDeleteModalOpen removed from deps - using ref instead
+  ]);
 
   // Show authentication form if not authenticated
   if (!isAuthenticated) {
@@ -283,11 +301,12 @@ useEffect(() => {
             isLoading={chatLogs.isLoading}
             selectedSession={chatLogs.selectedSession}
             onSelectSession={(sessionId) => {
+              // Don't reload data - just update selection state
               chatLogs.setSelectedSession(sessionId);
             }}
             onViewAppointment={handleViewAppointment}
             onDeleteConversation={handleDeleteConversation}
-            onDeleteModalStateChange={setIsChatDeleteModalOpen}
+            onDeleteModalStateChange={handleChatDeleteModalChange}
           />
         );
       case 'analytics':
