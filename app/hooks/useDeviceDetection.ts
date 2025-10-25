@@ -46,19 +46,33 @@ export const useDeviceDetection = (): DeviceInfo => {
     // Only run on client side
     if (typeof window === 'undefined') return;
 
+    // ✅ FIXED: Helper to only update if device info actually changed
+    const updateDeviceInfo = (newDeviceInfo: DeviceInfo) => {
+      setDeviceInfo(prev => {
+        // Only update if values actually changed to prevent infinite re-renders
+        if (prev.type !== newDeviceInfo.type ||
+            prev.isTouchDevice !== newDeviceInfo.isTouchDevice ||
+            prev.width !== newDeviceInfo.width ||
+            prev.height !== newDeviceInfo.height) {
+          return newDeviceInfo;
+        }
+        return prev; // No change, return previous to prevent re-render
+      });
+    };
+
     const handleResize = () => {
-      setDeviceInfo(getDeviceInfo());
+      updateDeviceInfo(getDeviceInfo());
     };
 
     const handleOrientationChange = () => {
       // Small delay to ensure dimensions are updated after orientation change
       setTimeout(() => {
-        setDeviceInfo(getDeviceInfo());
+        updateDeviceInfo(getDeviceInfo());
       }, 100);
     };
 
     // Set initial values
-    setDeviceInfo(getDeviceInfo());
+    updateDeviceInfo(getDeviceInfo());
 
     // Add event listeners
     window.addEventListener('resize', handleResize);

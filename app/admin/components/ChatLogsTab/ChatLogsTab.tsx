@@ -34,7 +34,6 @@ interface ChatLogsTabProps {
   onSelectSession: (sessionId: string | null) => void;
   onViewAppointment?: (appointmentId: number) => void;
   onDeleteConversation?: (sessionId: string) => void;
-  onDeleteModalStateChange?: (isOpen: boolean) => void;  // ✅ ADD THIS LINE
 }
 
 export const ChatLogsTab = ({
@@ -44,8 +43,7 @@ export const ChatLogsTab = ({
   selectedSession,
   onSelectSession,
   onViewAppointment,
-  onDeleteConversation,
-  onDeleteModalStateChange  // ✅ ADD THIS LINE
+  onDeleteConversation
 }: ChatLogsTabProps) => {
   const { type: deviceType } = useDeviceDetection();
   const touchTargetSize = getTouchTargetSize(deviceType);
@@ -73,6 +71,7 @@ export const ChatLogsTab = ({
   const {
     selectedConversation,
     showDeleteConfirmation,
+    conversationToDelete,  // ✅ ADDED: Needed for modal state sync
     handleConversationClick,
     handleDeleteClick,
     confirmDelete,
@@ -84,13 +83,6 @@ export const ChatLogsTab = ({
     onDeleteConversation,
     onViewAppointment
   });
-
-  // ✅ NEW: Notify parent when delete modal opens/closes
-  React.useEffect(() => {
-    if (onDeleteModalStateChange) {
-      onDeleteModalStateChange(showDeleteConfirmation);
-    }
-  }, [showDeleteConfirmation, onDeleteModalStateChange]);
 
   // ✅ FIX: Prevent data reload when conversation modal opens/closes
   React.useEffect(() => {
@@ -182,6 +174,7 @@ export const ChatLogsTab = ({
           />
         )}
 
+        {/* Delete Confirmation Modal - Will use Portal */}
         <DeleteConfirmationModal
           isOpen={showDeleteConfirmation}
           onConfirm={confirmDelete}
@@ -266,6 +259,7 @@ export const ChatLogsTab = ({
         />
       )}
 
+      {/* Delete Confirmation Modal - Will use Portal */}
       <DeleteConfirmationModal
         isOpen={showDeleteConfirmation}
         onConfirm={confirmDelete}
@@ -348,6 +342,7 @@ export const ChatLogsTab = ({
         />
       )}
 
+      {/* Delete Confirmation Modal - Will use Portal */}
       <DeleteConfirmationModal
         isOpen={showDeleteConfirmation}
         onConfirm={confirmDelete}

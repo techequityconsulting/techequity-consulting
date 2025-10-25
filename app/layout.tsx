@@ -16,6 +16,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "TechEquity Consulting",
   description: "Operations consulting, cybersecurity, and AI automation solutions",
+  icons: '/favicon.svg',
 };
 
 export default function RootLayout({

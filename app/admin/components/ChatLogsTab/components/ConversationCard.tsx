@@ -42,13 +42,25 @@ export const ConversationCard = ({
     >
       {/* Mobile Delete Button - Larger touch target */}
       <button
-        onClick={(e) => onDeleteClick(e, conversation.sessionId)}
-        className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition-colors opacity-70 hover:opacity-100"
-        style={{ 
-          width: touchTargetSize, 
+        onClick={(e) => {
+          console.log('🔴 Mobile delete button clicked');
+          e.stopPropagation();
+          e.preventDefault();
+          onDeleteClick(e, conversation.sessionId);
+        }}
+        onMouseDown={(e) => {
+          e.stopPropagation(); // Also stop mousedown
+        }}
+        onTouchStart={(e) => {
+          e.stopPropagation(); // Also stop touch events
+        }}
+        className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition-colors opacity-70 hover:opacity-100 z-10"
+        style={{
+          width: touchTargetSize,
           height: touchTargetSize,
           minWidth: '32px',
-          minHeight: '32px'
+          minHeight: '32px',
+          pointerEvents: 'auto' // Ensure button captures events
         }}
         title="Delete conversation"
       >
@@ -137,8 +149,17 @@ export const ConversationCard = ({
     >
       {/* Tablet Delete Button */}
       <button
-        onClick={(e) => onDeleteClick(e, conversation.sessionId)}
-        className="absolute top-2 right-2 w-7 h-7 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition-colors opacity-70 hover:opacity-100"
+        onClick={(e) => {
+          console.log('🔴 Tablet delete button clicked');
+          e.stopPropagation();
+          e.preventDefault();
+          onDeleteClick(e, conversation.sessionId);
+        }}
+        onMouseDown={(e) => {
+          e.stopPropagation(); // Also stop mousedown
+        }}
+        className="absolute top-2 right-2 w-7 h-7 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition-colors opacity-70 hover:opacity-100 z-10"
+        style={{ pointerEvents: 'auto' }}
         title="Delete conversation"
       >
         <Trash2 className="w-4 h-4" />
@@ -239,8 +260,17 @@ export const ConversationCard = ({
     >
       {/* Desktop Delete Button */}
       <button
-        onClick={(e) => onDeleteClick(e, conversation.sessionId)}
-        className="absolute top-2 right-2 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition-colors opacity-70 hover:opacity-100"
+        onClick={(e) => {
+          console.log('🔴 Desktop delete button clicked');
+          e.stopPropagation();
+          e.preventDefault();
+          onDeleteClick(e, conversation.sessionId);
+        }}
+        onMouseDown={(e) => {
+          e.stopPropagation(); // Also stop mousedown
+        }}
+        className="absolute top-2 right-2 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition-colors opacity-70 hover:opacity-100 z-10"
+        style={{ pointerEvents: 'auto' }}
         title="Delete conversation"
       >
         <Trash2 className="w-3 h-3" />

@@ -17,11 +17,22 @@ export const useConversationActions = ({
   onViewAppointment
 }: UseConversationActionsProps) => {
   const { type: deviceType, isTouchDevice } = useDeviceDetection();
-  
+
   const [selectedConversation, setSelectedConversation] = useState<string | null>(selectedSession);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [conversationToDelete, setConversationToDelete] = useState<string | null>(null);
   const [lastInteractionTime, setLastInteractionTime] = useState<number>(Date.now());
+  const [modalOpenedAt, setModalOpenedAt] = useState<number>(0);
+
+  // 🐛 DEBUG: Track showDeleteConfirmation state changes
+  useEffect(() => {
+    console.log('🔔 showDeleteConfirmation changed:', {
+      showDeleteConfirmation,
+      conversationToDelete,
+      timestamp: new Date().toISOString(),
+      stackTrace: new Error().stack?.split('\n').slice(0, 5).join('\n')
+    });
+  }, [showDeleteConfirmation, conversationToDelete]);
   const [swipeState, setSwipeState] = useState<{
     startX: number;
     startY: number;
@@ -109,28 +120,37 @@ export const useConversationActions = ({
 
   // Device-aware delete action with different confirmation patterns
   const handleDeleteClick = useCallback((e: React.MouseEvent | React.TouchEvent, sessionId: string) => {
-    e.stopPropagation(); // Prevent conversation selection
-    
+    console.log('🗑️ DELETE CLICK - START', {
+      sessionId,
+      deviceType,
+      timestamp: new Date().toISOString()
+    });
+
+    // CRITICAL: Stop ALL event propagation
+    e.stopPropagation(); // Prevent React event bubbling
+    e.preventDefault(); // Prevent default browser behavior
+    if ('nativeEvent' in e && e.nativeEvent) {
+      e.nativeEvent.stopImmediatePropagation(); // Stop native event too
+    }
+
+    // Set modal state
+    setConversationToDelete(sessionId);
+    setModalOpenedAt(Date.now()); // Track when modal was opened
+    setShowDeleteConfirmation(true);
+
     if (deviceType === 'mobile') {
-      // Mobile: Immediate confirmation modal for safety
-      setConversationToDelete(sessionId);
-      setShowDeleteConfirmation(true);
-      
       // Mobile: Add haptic feedback simulation
+      console.log('📱 Mobile delete - modal opened');
       if ('vibrate' in navigator) {
         navigator.vibrate(50); // Short vibration for delete action
       }
-      
     } else if (deviceType === 'tablet') {
-      // Tablet: Quick confirmation with touch-friendly modal
-      setConversationToDelete(sessionId);
-      setShowDeleteConfirmation(true);
-      
+      console.log('📱 Tablet delete - modal opened');
     } else {
-      // Desktop: Traditional confirmation dialog
-      setConversationToDelete(sessionId);
-      setShowDeleteConfirmation(true);
+      console.log('🖥️ Desktop delete - modal opened');
     }
+
+    console.log('🗑️ DELETE CLICK - END');
   }, [deviceType]);
 
   // Device-aware swipe gesture handling for mobile
@@ -196,33 +216,38 @@ export const useConversationActions = ({
 
   // Device-aware delete confirmation with different UX patterns
   const confirmDelete = useCallback(() => {
+    console.log('✅ CONFIRM DELETE called', {
+      conversationToDelete,
+      timestamp: new Date().toISOString()
+    });
+
     if (conversationToDelete && onDeleteConversation) {
       if (deviceType === 'mobile') {
         // Mobile: Immediate deletion with undo option
         onDeleteConversation(conversationToDelete);
-        
+
         // Mobile: Show toast-style undo notification
         console.log('Mobile deletion completed - undo option could be implemented');
-        
+
         // Mobile: Haptic feedback for confirmation
         if ('vibrate' in navigator) {
           navigator.vibrate([50, 50, 50]); // Triple vibration for successful delete
         }
-        
+
       } else if (deviceType === 'tablet') {
         // Tablet: Standard deletion with visual feedback
         onDeleteConversation(conversationToDelete);
         console.log('Tablet deletion completed');
-        
+
       } else {
         // Desktop: Standard deletion with detailed logging
         onDeleteConversation(conversationToDelete);
         console.log(`Desktop deletion completed for conversation: ${conversationToDelete}`);
       }
-      
+
       setShowDeleteConfirmation(false);
       setConversationToDelete(null);
-      
+
       // If we're deleting the currently selected conversation, clear selection
       if (selectedConversation === conversationToDelete) {
         setSelectedConversation(null);
@@ -233,14 +258,31 @@ export const useConversationActions = ({
 
   // Device-aware delete cancellation
   const cancelDelete = useCallback(() => {
+    const now = Date.now();
+    const timeSinceOpen = now - modalOpenedAt;
+
+    console.log('❌ CANCEL DELETE called', {
+      conversationToDelete,
+      timeSinceOpen,
+      timestamp: new Date().toISOString(),
+      stackTrace: new Error().stack
+    });
+
+    // DEFENSIVE: Prevent immediate close (debounce for 100ms)
+    if (timeSinceOpen < 100) {
+      console.warn('⚠️ BLOCKED: Modal was just opened, ignoring close request');
+      return;
+    }
+
     setShowDeleteConfirmation(false);
     setConversationToDelete(null);
-    
+    setModalOpenedAt(0);
+
     // Device-specific cancel feedback
     if (deviceType === 'mobile' && 'vibrate' in navigator) {
       navigator.vibrate(25); // Short vibration for cancel
     }
-  }, [deviceType]);
+  }, [deviceType, conversationToDelete, modalOpenedAt]);
 
   // Device-aware appointment viewing with different navigation patterns
   const handleViewAppointment = useCallback((appointmentId: number, event?: React.MouseEvent | React.TouchEvent) => {

@@ -30,12 +30,6 @@ import { ConfirmationModal } from './components/ConfirmationModal';
 export default function AdminPanel() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('availability');
   const [notification, setNotification] = useState<Notification | null>(null);
-  // Track chat logs delete confirmation state
-  const [isChatDeleteModalOpen, setIsChatDeleteModalOpen] = useState(false);
-  
-  // ✅ NEW: Use ref to track modal state synchronously
-  const isChatDeleteModalOpenRef = useRef(false);
-  
   // Appointment modal state
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
@@ -155,13 +149,6 @@ export default function AdminPanel() {
     await chatLogs.deleteConversation(sessionId);
   };
 
-  // ✅ CRITICAL FIX: Update both state and ref synchronously
-  const handleChatDeleteModalChange = useCallback((isOpen: boolean) => {
-    console.log('🔔 Chat delete modal state changed:', isOpen);
-    isChatDeleteModalOpenRef.current = isOpen;
-    setIsChatDeleteModalOpen(isOpen);
-  }, []);
-
   // Load data ONLY when authenticated AND auth headers are available
   useEffect(() => {
     if (isAuthenticated) {
@@ -201,11 +188,10 @@ export default function AdminPanel() {
       return;
     }
 
-    // Check modal state using BOTH ref (synchronous) and state (for re-renders)
+    // Check modal state
     const checkIfAnyModalOpen = () => {
       return (
-        isChatDeleteModalOpenRef.current ||  // ✅ FIXED: Use ref for immediate check
-        showAppointmentModal || 
+        showAppointmentModal ||
         appointments.showDeleteConfirmation ||
         appointments.editingAppointment !== null ||
         chatLogs.selectedSession !== null
@@ -236,13 +222,12 @@ export default function AdminPanel() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    isAuthenticated, 
-    activeTab, 
-    showAppointmentModal, 
+    isAuthenticated,
+    activeTab,
+    showAppointmentModal,
     appointments.showDeleteConfirmation,
     appointments.editingAppointment,
     chatLogs.selectedSession
-    // Note: isChatDeleteModalOpen removed from deps - using ref instead
   ]);
 
   // Show authentication form if not authenticated
@@ -306,7 +291,6 @@ export default function AdminPanel() {
             }}
             onViewAppointment={handleViewAppointment}
             onDeleteConversation={handleDeleteConversation}
-            onDeleteModalStateChange={handleChatDeleteModalChange}
           />
         );
       case 'analytics':

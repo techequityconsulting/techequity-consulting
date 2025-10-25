@@ -2,6 +2,8 @@
 
 'use client';
 
+import React from 'react';
+import { createPortal } from 'react-dom';
 import { Trash2 } from 'lucide-react';
 import { useDeviceDetection } from '@/hooks/useDeviceDetection';
 import { ResponsiveWrapper } from '@/components/ResponsiveWrapper';
@@ -21,7 +23,31 @@ export const DeleteConfirmationModal = ({
   const { type: deviceType } = useDeviceDetection();
   const touchTargetSize = getTouchTargetSize(deviceType);
 
-  if (!isOpen) return null;
+  // Client-side only rendering (Next.js SSR safety)
+  const [mounted, setMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // 🐛 DEBUG: Track modal render
+  console.log('🚨 DeleteConfirmationModal render:', {
+    isOpen,
+    mounted,
+    deviceType,
+    timestamp: new Date().toISOString()
+  });
+
+  // 🐛 DEBUG: Track isOpen changes
+  React.useEffect(() => {
+    console.log('🚨 DeleteConfirmationModal isOpen changed:', {
+      isOpen,
+      timestamp: new Date().toISOString()
+    });
+  }, [isOpen]);
+
+  // Don't render on server or when closed
+  if (!mounted || !isOpen) return null;
 
   // Mobile: Full-screen confirmation with large buttons
   const MobileDeleteConfirmationModal = () => (
@@ -57,14 +83,24 @@ export const DeleteConfirmationModal = ({
       {/* Mobile Actions - Fixed bottom area with large buttons */}
       <div className="p-6 space-y-4 flex-shrink-0">
         <button
-          onClick={onConfirm}
+          onClick={(e) => {
+            console.log('🔴 DELETE BUTTON CLICKED (Mobile)');
+            e.stopPropagation();
+            e.preventDefault();
+            onConfirm();
+          }}
           className="w-full bg-red-600 text-white rounded-xl font-semibold text-lg transition-colors hover:bg-red-700 active:bg-red-800"
           style={{ minHeight: touchTargetSize, height: '56px' }}
         >
           Delete Conversation
         </button>
         <button
-          onClick={onCancel}
+          onClick={(e) => {
+            console.log('⚪ CANCEL BUTTON CLICKED (Mobile)');
+            e.stopPropagation();
+            e.preventDefault();
+            onCancel();
+          }}
           className="w-full border-2 border-gray-300 text-gray-700 rounded-xl font-semibold text-lg transition-colors hover:bg-gray-50 active:bg-gray-100"
           style={{ minHeight: touchTargetSize, height: '56px' }}
         >
@@ -76,8 +112,21 @@ export const DeleteConfirmationModal = ({
 
   // Tablet: Medium modal
   const TabletDeleteConfirmationModal = () => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-6">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg">
+    <div
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-6"
+      onClick={(e) => {
+        console.log('🎯 Backdrop clicked (Tablet)');
+        // Don't close on backdrop click - only explicit button clicks
+        e.stopPropagation();
+      }}
+    >
+      <div
+        className="bg-white rounded-xl shadow-2xl w-full max-w-lg"
+        onClick={(e) => {
+          console.log('📄 Modal content clicked (Tablet)');
+          e.stopPropagation();
+        }}
+      >
         {/* Tablet Modal Header */}
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center gap-4">
@@ -98,14 +147,24 @@ export const DeleteConfirmationModal = ({
         {/* Tablet Modal Actions */}
         <div className="px-6 py-4 border-t border-gray-200 flex gap-3 justify-end">
           <button
-            onClick={onCancel}
+            onClick={(e) => {
+              console.log('⚪ CANCEL BUTTON CLICKED (Tablet)');
+              e.stopPropagation();
+              e.preventDefault();
+              onCancel();
+            }}
             className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors text-base"
             style={{ minHeight: '48px' }}
           >
             Cancel
           </button>
           <button
-            onClick={onConfirm}
+            onClick={(e) => {
+              console.log('🔴 DELETE BUTTON CLICKED (Tablet)');
+              e.stopPropagation();
+              e.preventDefault();
+              onConfirm();
+            }}
             className="px-6 py-3 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors text-base"
             style={{ minHeight: '48px' }}
           >
@@ -118,8 +177,21 @@ export const DeleteConfirmationModal = ({
 
   // Desktop: Small centered modal
   const DesktopDeleteConfirmationModal = () => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4">
+    <div
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      onClick={(e) => {
+        console.log('🎯 Backdrop clicked (Desktop)');
+        // Don't close on backdrop click - only explicit button clicks
+        e.stopPropagation();
+      }}
+    >
+      <div
+        className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4"
+        onClick={(e) => {
+          console.log('📄 Modal content clicked (Desktop)');
+          e.stopPropagation();
+        }}
+      >
         {/* Desktop Modal Header */}
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center justify-between">
@@ -142,13 +214,23 @@ export const DeleteConfirmationModal = ({
         {/* Desktop Modal Actions */}
         <div className="px-6 py-4 border-t border-gray-200 flex gap-3 justify-end">
           <button
-            onClick={onCancel}
+            onClick={(e) => {
+              console.log('⚪ CANCEL BUTTON CLICKED (Desktop)');
+              e.stopPropagation();
+              e.preventDefault();
+              onCancel();
+            }}
             className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
           >
             Cancel
           </button>
           <button
-            onClick={onConfirm}
+            onClick={(e) => {
+              console.log('🔴 DELETE BUTTON CLICKED (Desktop)');
+              e.stopPropagation();
+              e.preventDefault();
+              onConfirm();
+            }}
             className="px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors"
           >
             Delete Conversation
@@ -158,11 +240,14 @@ export const DeleteConfirmationModal = ({
     </div>
   );
 
-  return (
+  // ✅ PORTAL SOLUTION: Render to document.body to survive parent re-renders
+  // This makes the modal independent of ChatLogsTab's component tree
+  return createPortal(
     <ResponsiveWrapper
       mobile={<MobileDeleteConfirmationModal />}
       tablet={<TabletDeleteConfirmationModal />}
       desktop={<DesktopDeleteConfirmationModal />}
-    />
+    />,
+    document.body // Render directly to body, outside ChatLogsTab
   );
 };
