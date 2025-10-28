@@ -12117,6 +12117,7 @@ var __async = (__this, __arguments, generator) => {
      */
     request(_0) {
       return __async(this, arguments, function* (endpoint, options = {}) {
+        var _a;
         try {
           const url = `${this.baseUrl}${endpoint}`;
           const headers = __spreadValues({
@@ -12131,7 +12132,8 @@ var __async = (__this, __arguments, generator) => {
           }));
           const data = yield response.json();
           if (!response.ok) {
-            throw new Error(data.error || `HTTP ${response.status}`);
+            const errorMessage = typeof data.error === "object" && ((_a = data.error) == null ? void 0 : _a.message) ? data.error.message : typeof data.error === "string" ? data.error : `HTTP ${response.status}`;
+            throw new Error(errorMessage);
           }
           if (this.config.debug) {
             console.log("✅ API Response:", data);
@@ -12140,7 +12142,7 @@ var __async = (__this, __arguments, generator) => {
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : "Unknown error";
           if (this.config.debug) {
-            console.error("❌ API Error:", errorMessage);
+            console.error("❌ API Error:", errorMessage, error);
           }
           return {
             success: false,
@@ -12378,6 +12380,24 @@ var __async = (__this, __arguments, generator) => {
     } })))));
   };
   var _jsxFileName$8 = "C:\\Users\\Renan\\autoassistpro-frontend\\src\\widget\\components\\Message.tsx";
+  function parseBoldTextSafe(text) {
+    const parts = text.split(/(\*\*.+?\*\*)/g);
+    return parts.map((part, i) => {
+      if (part.startsWith("**") && part.endsWith("**")) {
+        const content = part.slice(2, -2);
+        return /* @__PURE__ */ React.createElement("strong", { key: i, __self: this, __source: {
+          fileName: _jsxFileName$8,
+          lineNumber: 29,
+          columnNumber: 14
+        } }, content);
+      }
+      return /* @__PURE__ */ React.createElement(React.Fragment, { key: i, __self: this, __source: {
+        fileName: _jsxFileName$8,
+        lineNumber: 32,
+        columnNumber: 12
+      } }, part);
+    });
+  }
   function parseMessageContent(content) {
     const lines = content.split("\n");
     const elements = [];
@@ -12391,21 +12411,19 @@ var __async = (__this, __arguments, generator) => {
           marginBottom: "6px"
         }, __self: this, __source: {
           fileName: _jsxFileName$8,
-          lineNumber: 31,
+          lineNumber: 50,
           columnNumber: 9
         } }, /* @__PURE__ */ React.createElement("span", { style: {
           flexShrink: 0
         }, __self: this, __source: {
           fileName: _jsxFileName$8,
-          lineNumber: 32,
+          lineNumber: 51,
           columnNumber: 11
-        } }, "•"), /* @__PURE__ */ React.createElement("span", { dangerouslySetInnerHTML: {
-          __html: parseBoldText(bulletContent)
-        }, __self: this, __source: {
+        } }, "•"), /* @__PURE__ */ React.createElement("span", { __self: this, __source: {
           fileName: _jsxFileName$8,
-          lineNumber: 33,
+          lineNumber: 52,
           columnNumber: 11
-        } })));
+        } }, parseBoldTextSafe(bulletContent))));
       } else if (/^\d+\.\s/.test(line.trim())) {
         const number = (_a = line.trim().match(/^(\d+)\.\s/)) == null ? void 0 : _a[1];
         const listContent = line.trim().replace(/^\d+\.\s/, "");
@@ -12415,26 +12433,24 @@ var __async = (__this, __arguments, generator) => {
           marginBottom: "6px"
         }, __self: this, __source: {
           fileName: _jsxFileName$8,
-          lineNumber: 42,
+          lineNumber: 61,
           columnNumber: 9
         } }, /* @__PURE__ */ React.createElement("span", { style: {
           flexShrink: 0,
           fontWeight: 500
         }, __self: this, __source: {
           fileName: _jsxFileName$8,
-          lineNumber: 43,
+          lineNumber: 62,
           columnNumber: 11
-        } }, number, "."), /* @__PURE__ */ React.createElement("span", { dangerouslySetInnerHTML: {
-          __html: parseBoldText(listContent)
-        }, __self: this, __source: {
+        } }, number, "."), /* @__PURE__ */ React.createElement("span", { __self: this, __source: {
           fileName: _jsxFileName$8,
-          lineNumber: 44,
+          lineNumber: 63,
           columnNumber: 11
-        } })));
+        } }, parseBoldTextSafe(listContent))));
       } else if (line.trim() === "") {
         elements.push(/* @__PURE__ */ React.createElement("br", { key: index, __self: this, __source: {
           fileName: _jsxFileName$8,
-          lineNumber: 50,
+          lineNumber: 69,
           columnNumber: 21
         } }));
       } else {
@@ -12442,21 +12458,16 @@ var __async = (__this, __arguments, generator) => {
           marginBottom: "6px"
         }, __self: this, __source: {
           fileName: _jsxFileName$8,
-          lineNumber: 55,
+          lineNumber: 74,
           columnNumber: 9
-        } }, /* @__PURE__ */ React.createElement("span", { dangerouslySetInnerHTML: {
-          __html: parseBoldText(line)
-        }, __self: this, __source: {
+        } }, /* @__PURE__ */ React.createElement("span", { __self: this, __source: {
           fileName: _jsxFileName$8,
-          lineNumber: 56,
+          lineNumber: 75,
           columnNumber: 11
-        } })));
+        } }, parseBoldTextSafe(line))));
       }
     });
     return /* @__PURE__ */ React.createElement(React.Fragment, null, elements);
-  }
-  function parseBoldText(text) {
-    return text.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
   }
   const Message = ({
     message,
@@ -12472,7 +12483,7 @@ var __async = (__this, __arguments, generator) => {
         color: "#6b7280"
       }, __self: void 0, __source: {
         fileName: _jsxFileName$8,
-        lineNumber: 78,
+        lineNumber: 90,
         columnNumber: 7
       } }, message.content);
     }
@@ -12482,7 +12493,7 @@ var __async = (__this, __arguments, generator) => {
       marginBottom: "12px"
     }, __self: void 0, __source: {
       fileName: _jsxFileName$8,
-      lineNumber: 90,
+      lineNumber: 102,
       columnNumber: 5
     } }, /* @__PURE__ */ React.createElement("div", { style: {
       maxWidth: "75%",
@@ -12491,7 +12502,7 @@ var __async = (__this, __arguments, generator) => {
       alignItems: isUser ? "flex-end" : "flex-start"
     }, __self: void 0, __source: {
       fileName: _jsxFileName$8,
-      lineNumber: 95,
+      lineNumber: 107,
       columnNumber: 7
     } }, /* @__PURE__ */ React.createElement("div", { style: {
       backgroundColor: isUser ? primaryColor : "#f3f4f6",
@@ -12504,7 +12515,7 @@ var __async = (__this, __arguments, generator) => {
       boxShadow: "0 1px 2px rgba(0, 0, 0, 0.05)"
     }, __self: void 0, __source: {
       fileName: _jsxFileName$8,
-      lineNumber: 101,
+      lineNumber: 113,
       columnNumber: 9
     } }, parseMessageContent(message.content)), /* @__PURE__ */ React.createElement("div", { style: {
       fontSize: "11px",
@@ -12513,7 +12524,7 @@ var __async = (__this, __arguments, generator) => {
       padding: "0 4px"
     }, __self: void 0, __source: {
       fileName: _jsxFileName$8,
-      lineNumber: 114,
+      lineNumber: 126,
       columnNumber: 9
     } }, message.timestamp.toLocaleTimeString([], {
       hour: "2-digit",
