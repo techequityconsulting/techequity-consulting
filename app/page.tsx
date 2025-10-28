@@ -14,24 +14,23 @@ import { ServicesSection } from './components/ServicesSection';
 import { ContactSection } from './components/ContactSection';
 import { TrustedPartnersSection } from './components/TrustedPartnersSection';
 import { Footer } from './components/Footer';
-import { SchedulingModal } from './components/SchedulingModal';
+import { BookingIframe } from './components/BookingIframe';
 
 // Hooks
-import { useScheduling } from './hooks/useScheduling';
-import { useFormData } from './hooks/useFormData';
 import { useWidgetBookingIntegration } from './hooks/useWidgetBookingIntegration';
 
 export default function Home() {
-  // Initialize hooks
-  const scheduling = useScheduling();
-  const formData = useFormData();
+  // State for iframe booking modal
+  const [showBookingIframe, setShowBookingIframe] = useState(false);
+  const [bookingSessionId, setBookingSessionId] = useState<string>('');
 
-  // State to store the widget's session ID
-  const [widgetSessionId, setWidgetSessionId] = useState<string>('');
-  
   // Track widget loading state to prevent double initialization
   const [isWidgetLoaded, setIsWidgetLoaded] = useState(false);
   const widgetLoadAttempts = useRef(0);
+
+  // Configuration for AutoAssistPro
+  const clientId = 'client_techequity_001';
+  const apiKey = 'pk_live_techequity_cbb31add4925bad252950cd9d9ff7ad0';
 
   // Cleanup function and keyboard shortcut for admin access
   useEffect(() => {
@@ -67,39 +66,12 @@ export default function Home() {
     };
   }, []);
 
-  // Combined handler for scheduling call
+  // Handler for scheduling call - opens booking iframe
   // Captures sessionId from widget event
   const handleScheduleCall = (sessionId?: string) => {
-    if (sessionId) {
-      console.log('📋 Captured session ID from widget:', sessionId);
-      setWidgetSessionId(sessionId);
-    }
-    
-    scheduling.handleScheduleCall();
-    formData.resetForm();
-  };
-
-  // Combined handler for booking confirmation
-  // Passes captured sessionId to appointment booking
-  const handleBookingConfirmation = async () => {
-    console.log('💾 Booking appointment with session ID:', widgetSessionId);
-    
-    await scheduling.handleBookingConfirmation(
-      formData.formData,
-      widgetSessionId,
-      (dayName: string, time: string, email: string) => {
-        // Scheduling confirmation callback
-        console.log('✅ Appointment booked:', { dayName, time, email, sessionId: widgetSessionId });
-        
-        // Dispatch event to widget to show confirmation message
-        window.dispatchEvent(new CustomEvent('autoassistpro:booking-confirmed', {
-          detail: { dayName, time, email }
-        }));
-
-        // Clear the session ID after successful booking
-        setWidgetSessionId('');
-      }
-    );
+    console.log('📅 Opening booking iframe with sessionId:', sessionId);
+    setBookingSessionId(sessionId || '');
+    setShowBookingIframe(true);
   };
 
   // Initialize widget booking integration
@@ -176,21 +148,13 @@ export default function Home() {
         <ContactSection />
         <Footer />
 
-        {/* Scheduling Modal */}
-        <SchedulingModal
-          showSchedulingModal={scheduling.showSchedulingModal}
-          formData={formData.formData}
-          selectedDate={scheduling.selectedDate}
-          selectedTime={scheduling.selectedTime}
-          availableSlots={scheduling.availableSlots}
-          isLoadingSlots={scheduling.isLoadingSlots}
-          isBooking={scheduling.isBooking}
-          handleInputChange={formData.handleInputChange}
-          handlePhoneChange={formData.handlePhoneChange}
-          setSelectedDate={scheduling.setSelectedDate}
-          setSelectedTime={scheduling.setSelectedTime}
-          closeSchedulingModal={scheduling.closeSchedulingModal}
-          onBookingConfirmation={handleBookingConfirmation}
+        {/* Booking iframe - replaces custom SchedulingModal */}
+        <BookingIframe
+          isOpen={showBookingIframe}
+          onClose={() => setShowBookingIframe(false)}
+          clientId={clientId}
+          apiKey={apiKey}
+          sessionId={bookingSessionId}
         />
       </div>
     </>

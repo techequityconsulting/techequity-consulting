@@ -1,494 +1,213 @@
+// app/admin/page.tsx
+// iframe-based admin panel - embeds AutoAssistPro's admin interface
+// FIXED: Hydration mismatch by ensuring client-only rendering
 
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { ActiveTab, Notification, Appointment } from './types';
-import { useAuth } from './hooks/useAuth';
-import { useAppointments } from './hooks/useAppointments/index';
-import { useAvailability } from './hooks/useAvailability';
-import { useSettings } from './hooks/useSettings/index';
-import { useChatLogs } from './hooks/useChatLogs';
-import { useDeviceDetection } from '@/hooks/useDeviceDetection';
-import { ResponsiveWrapper } from '@/components/ResponsiveWrapper';
-import { isAuthenticated as checkAuthStatus } from './utils/apiAuth';
-import { ProfileTab } from './components/ProfileTab';
+import { useEffect, useState } from 'react';
 
-// Components
-import { AuthForm } from './components/AuthForm';
-import { Header } from './components/Header';
-import { Navigation } from './components/Navigation';
-import { AvailabilityTab } from './components/AvailabilityTab';
-import { BookingsTab } from './components/BookingsTab/BookingsTab';
-import { SettingsTab } from './components/SettingsTab';
-import { ChatLogsTab } from './components/ChatLogsTab/ChatLogsTab';
-import { AnalyticsTab } from './components/AnalyticsTab';
-import { EditAppointmentModal } from './components/EditAppointmentModal';
-import { AppointmentModal } from './components/AppointmentModal';
-import { NotificationModal } from './components/NotificationModal';
-import { ConfirmationModal } from './components/ConfirmationModal';
+export default function AdminPage() {
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
+  const [adminUrl, setAdminUrl] = useState(''); // ✅ Start empty, set on client only
 
-export default function AdminPanel() {
-  const [activeTab, setActiveTab] = useState<ActiveTab>('availability');
-  const [notification, setNotification] = useState<Notification | null>(null);
-  // Appointment modal state
-  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
-  const [showAppointmentModal, setShowAppointmentModal] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-
-  // Authentication hook
-  const { isAuthenticated, loginForm, handleLogin, handleLogout, updateLoginForm } = useAuth();
-
-  // Custom hooks for data management
-  const appointments = useAppointments(setNotification);
-  const availability = useAvailability(setNotification);
-  const settings = useSettings(setNotification);
-  
-  // Pass appointments.scheduledCalls to useChatLogs for database-driven appointment detection
-  const chatLogs = useChatLogs(setNotification, appointments.scheduledCalls);
-
-  // Global synchronized refresh function
-  const handleGlobalRefresh = async (silent = false) => {
-    if (!silent) {
-      console.log('🔄 Starting global refresh across all tabs...');
-    }
-    setIsRefreshing(true);
-    
-    try {
-      // Refresh all data sources in parallel
-      await Promise.all([
-        appointments.loadScheduledCalls(),
-        chatLogs.refreshChatData(),
-        availability.loadWeeklySchedule(),
-        availability.loadBlackoutDates(),
-        settings.loadAppointmentSettings()
-      ]);
-      
-      if (!silent) {
-        console.log('✅ Global refresh completed successfully');
-        setNotification({
-          type: 'success',
-          message: 'All data refreshed successfully'
-        });
-      }
-    } catch (error) {
-      console.error('❌ Global refresh failed:', error);
-      if (!silent) {
-        setNotification({
-          type: 'error',
-          message: 'Failed to refresh some data. Please try again.'
-        });
-      }
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
-
-  // Navigation handlers for cross-linking between tabs
-  const handleViewConversation = (sessionId: string) => {
-    setActiveTab('chat-logs');
-    
-    // Close appointment modal if open
-    if (showAppointmentModal) {
-      setShowAppointmentModal(false);
-      setSelectedAppointment(null);
-    }
-    setTimeout(() => {
-      chatLogs.handleSelectSession(sessionId);
-    }, 100);
-  };
-
-  // Enhanced appointment view handler
-  const handleViewAppointment = (appointmentId: number) => {
-    console.log('Looking for appointment with ID:', appointmentId);
-    
-    // Handle special case where appointmentId is -1 (find by sessionId)
-    if (appointmentId === -1) {
-      const currentSessionId = chatLogs.selectedSession;
-      if (currentSessionId) {
-        const appointment = appointments.scheduledCalls.find(apt => apt.chatSessionId === currentSessionId);
-        if (appointment) {
-          setActiveTab('bookings');
-          setSelectedAppointment(appointment);
-          setShowAppointmentModal(true);
-          console.log('Opening appointment modal for session:', currentSessionId);
-          return;
-        }
-      }
-      
-      setNotification({
-        type: 'error',
-        message: 'Unable to find linked appointment. The appointment may have been deleted or the link is broken.'
-      });
-      return;
-    }
-    
-    // Find the specific appointment by ID
-    const appointment = appointments.scheduledCalls.find(apt => apt.id === appointmentId);
-    if (appointment) {
-      setActiveTab('bookings');
-      setSelectedAppointment(appointment);
-      setShowAppointmentModal(true);
-      console.log('Opening appointment modal for:', appointment.firstName, appointment.lastName);
-    } else {
-      console.warn('Appointment not found with ID:', appointmentId);
-      setNotification({
-        type: 'error',
-        message: `Appointment with ID ${appointmentId} not found.`
-      });
-    }
-  };
-
-  // Appointment modal close handler
-  const handleCloseAppointmentModal = () => {
-    setShowAppointmentModal(false);
-    setSelectedAppointment(null);
-  };
-
-  // Chat logs delete handler
-  const handleDeleteConversation = async (sessionId: string) => {
-    await chatLogs.deleteConversation(sessionId);
-  };
-
-  // Load data ONLY when authenticated AND auth headers are available
+  // ✅ FIX: Determine URL only on client side to avoid hydration mismatch
   useEffect(() => {
-    if (isAuthenticated) {
-      // Wait for auth headers to be available in localStorage
-      const loadInitialData = async () => {
-        // Double-check that auth is actually available
-        if (!checkAuthStatus()) {
-          console.warn('⚠️ Auth state is true but headers not available yet, waiting...');
-          await new Promise(resolve => setTimeout(resolve, 100));
-        }
-        
-        // Verify again after waiting
-        if (checkAuthStatus()) {
-          console.log('✅ User authenticated with valid headers - loading initial data');
-          availability.loadWeeklySchedule();
-          availability.loadBlackoutDates();
-          appointments.loadScheduledCalls();
-          settings.loadAppointmentSettings();
-          chatLogs.loadAllChatData();
-        } else {
-          console.error('❌ Authentication failed - unable to load data');
-          setNotification({
-            type: 'error',
-            message: 'Authentication error. Please try logging in again.'
-          });
-        }
-      };
-      
-      loadInitialData();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated]); // Only re-run when authentication state changes
+    const url = window.location.hostname === 'localhost'
+      ? 'http://localhost:3001/admin'
+      : 'https://www.autoassistpro.org/admin';
+    
+    setAdminUrl(url);
+  }, []);
 
-  // ✅ CRITICAL FIX: Use ref for synchronous check to prevent race condition
+  // Handle iframe load success
+  const handleIframeLoad = () => {
+    setIsLoading(false);
+    console.log('✅ Admin panel loaded successfully from:', adminUrl);
+  };
+
+  // Handle iframe load error
+  const handleIframeError = () => {
+    setIsLoading(false);
+    setHasError(true);
+    console.error('❌ Failed to load admin panel from:', adminUrl);
+  };
+
+  // Listen for messages from iframe (for future features)
   useEffect(() => {
-    if (!isAuthenticated || !checkAuthStatus()) {
-      return;
-    }
+    const handleMessage = (event: MessageEvent) => {
+      // Security: Verify origin in production
+      // TODO: Enable this in production
+      // if (process.env.NODE_ENV === 'production') {
+      //   const allowedOrigins = ['https://www.autoassistpro.org'];
+      //   if (!allowedOrigins.includes(event.origin)) {
+      //     console.warn('Blocked postMessage from unauthorized origin:', event.origin);
+      //     return;
+      //   }
+      // }
 
-    // Check modal state
-    const checkIfAnyModalOpen = () => {
-      return (
-        showAppointmentModal ||
-        appointments.showDeleteConfirmation ||
-        appointments.editingAppointment !== null ||
-        chatLogs.selectedSession !== null
-      );
+      // Handle messages from AutoAssistPro admin panel
+      switch (event.data.type) {
+        case 'autoassistpro:admin-ready':
+          console.log('📊 Admin panel ready:', event.data);
+          break;
+
+        case 'autoassistpro:admin-logout':
+          console.log('🚪 User logged out from admin panel');
+          // Optional: Redirect to homepage or login
+          break;
+
+        case 'autoassistpro:admin-error':
+          console.error('Admin panel error:', event.data.error);
+          setHasError(true);
+          break;
+
+        default:
+          // Log unknown messages in dev mode
+          if (process.env.NODE_ENV === 'development') {
+            console.log('Message from admin panel:', event.data);
+          }
+      }
     };
 
-    if ((activeTab === 'bookings' || activeTab === 'chat-logs')) {
-      const pollInterval = setInterval(async () => {
-        // ✅ FIXED: Check modal state inside interval to catch any changes
-        if (checkIfAnyModalOpen()) {
-          console.log('⏸️ Polling paused - modal is open');
-          return;
-        }
+    window.addEventListener('message', handleMessage);
 
-        try {
-          // Silent refresh - no notifications during background polling
-          await handleGlobalRefresh(true);
-        } catch (error) {
-          console.error('Polling update failed:', error);
-        }
-      }, 5000); // 5 seconds for near-instant widget booking updates
+    return () => {
+      window.removeEventListener('message', handleMessage);
+    };
+  }, []);
 
-      console.log(`Started fast polling for ${activeTab} tab (5s interval)`);
-      return () => {
-        clearInterval(pollInterval);
-        console.log(`Stopped polling for ${activeTab} tab`);
-      };
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    isAuthenticated,
-    activeTab,
-    showAppointmentModal,
-    appointments.showDeleteConfirmation,
-    appointments.editingAppointment,
-    chatLogs.selectedSession
-  ]);
+  // Cleanup: Remove any existing scroll lock
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
 
-  // Show authentication form if not authenticated
-  if (!isAuthenticated) {
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, []);
+
+  // ✅ Don't render iframe until we have the URL (client-side only)
+  if (!adminUrl) {
     return (
-      <AuthForm
-        loginForm={loginForm}
-        onLogin={handleLogin}
-        onUpdateForm={updateLoginForm}
-      />
+      <div className="h-screen w-screen bg-gradient-to-br from-slate-900 via-blue-950 to-indigo-950 flex items-center justify-center">
+        <div className="text-center">
+          <div className="relative w-20 h-20 mx-auto mb-6">
+            <div className="absolute inset-0 border-4 border-blue-500/20 rounded-full"></div>
+            <div className="absolute inset-0 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+          </div>
+          <h2 className="text-white text-2xl font-semibold mb-2">
+            Loading Admin Panel
+          </h2>
+          <p className="text-gray-400 text-sm">
+            Initializing...
+          </p>
+        </div>
+      </div>
     );
   }
 
-  const renderTabContent = () => {
-    switch (activeTab) {
-      case 'availability':
-        return (
-          <AvailabilityTab
-            weeklySchedule={availability.weeklySchedule}
-            blackoutDates={availability.blackoutDates}
-            isLoading={availability.isLoading}
-            onUpdateDaySchedule={availability.updateDaySchedule}
-            onSaveSchedule={availability.saveWeeklySchedule}
-            onAddBlackout={availability.addBlackoutDate}
-            onRemoveBlackout={availability.removeBlackoutDate}
-          />
-        );
-      case 'bookings':
-        return (
-          <BookingsTab
-            scheduledCalls={appointments.scheduledCalls}
-            isLoading={appointments.isLoading}
-            onEdit={appointments.openEditModal}
-            onDelete={appointments.initiateDeleteAppointment}
-            onViewConversation={handleViewConversation}
-            onAppointmentClick={(appointment) => {
-              setSelectedAppointment(appointment);
-              setShowAppointmentModal(true);
-            }}
-          />
-        );
-      case 'settings':
-        return (
-          <SettingsTab
-            appointmentSettings={settings.appointmentSettings}
-            isLoading={settings.isLoading}
-            onUpdateSettings={settings.updateSettings}
-            onSaveSettings={settings.saveAppointmentSettings}
-          />
-        );
-      case 'chat-logs':
-        return (
-          <ChatLogsTab
-            chatLogs={chatLogs.chatLogs}
-            chatSessions={chatLogs.chatSessions}
-            isLoading={chatLogs.isLoading}
-            selectedSession={chatLogs.selectedSession}
-            onSelectSession={(sessionId) => {
-              // Don't reload data - just update selection state
-              chatLogs.setSelectedSession(sessionId);
-            }}
-            onViewAppointment={handleViewAppointment}
-            onDeleteConversation={handleDeleteConversation}
-          />
-        );
-      case 'analytics':
-        return <AnalyticsTab />;
-      case 'profile':
-        // Get username from session storage
-        const getUsername = () => {
-          try {
-            const session = localStorage.getItem('techequity-admin-session');
-            if (session) {
-              const parsed = JSON.parse(session);
-              return parsed.user?.username || 'User';
-            }
-          } catch (error) {
-            console.error('Error reading username from session:', error);
-          }
-          return 'User';
-        };
-
-        return (
-          <ProfileTab
-            currentUsername={getUsername()}
-            onSuccess={(message) => setNotification({ type: 'success', message })}
-            onError={(message) => setNotification({ type: 'error', message })}
-          />
-        );
-      default:
-        return null;
-    }
-  };
-
-  // Mobile: Full-screen layout with bottom navigation
-  const MobileAdminPanel = () => (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-gray-900 to-slate-800 pb-20">
-      <Header onLogout={handleLogout} onRefresh={handleGlobalRefresh} isRefreshing={isRefreshing} />
-      
-      <div className="px-4 py-4">
-        {renderTabContent()}
-      </div>
-
-      <div className="fixed bottom-0 left-0 right-0 bg-gray-800/95 backdrop-blur-sm border-t border-gray-700 z-50">
-        <Navigation activeTab={activeTab} onTabChange={setActiveTab} />
-      </div>
-
-      <AppointmentModal
-        appointment={selectedAppointment}
-        isOpen={showAppointmentModal}
-        onClose={handleCloseAppointmentModal}
-        onEdit={(appointment) => {
-          appointments.openEditModal(appointment);
-          setShowAppointmentModal(false);
-        }}
-        onDelete={(appointmentId) => {
-          // FIXED: Pass callback to clear modal state after deletion
-          appointments.initiateDeleteAppointment(appointmentId, async () => {
-            setShowAppointmentModal(false);
-            setSelectedAppointment(null);
-            await handleGlobalRefresh(true); // Silent refresh after delete
-          });
-        }}
-        onViewConversation={handleViewConversation}
-      />
-
-      <ConfirmationModal
-        isOpen={appointments.showDeleteConfirmation}
-        title="Delete Appointment"
-        message="Are you sure you want to delete this appointment? This action cannot be undone."
-        confirmText="Delete"
-        cancelText="Cancel"
-        confirmButtonClass="bg-red-600 text-white hover:bg-red-700"
-        onConfirm={appointments.confirmDeleteAppointment}
-        onCancel={appointments.cancelDeleteAppointment}
-      />
-
-      <NotificationModal
-        notification={notification}
-        onClose={() => setNotification(null)}
-      />
-    </div>
-  );
-
-  // Tablet: Side navigation with optimized layout
-  const TabletAdminPanel = () => (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-gray-900 to-slate-800">
-      <Header onLogout={handleLogout} onRefresh={handleGlobalRefresh} isRefreshing={isRefreshing} />
-      
-      <div className="flex">
-        <div className="w-20 bg-gray-800/50 backdrop-blur-sm border-r border-gray-700">
-          <Navigation activeTab={activeTab} onTabChange={setActiveTab} />
-        </div>
-
-        <div className="flex-1 px-6 py-6">
-          {renderTabContent()}
-        </div>
-      </div>
-
-      <AppointmentModal
-        appointment={selectedAppointment}
-        isOpen={showAppointmentModal}
-        onClose={handleCloseAppointmentModal}
-        onEdit={(appointment) => {
-          appointments.openEditModal(appointment);
-          setShowAppointmentModal(false);
-        }}
-        onDelete={(appointmentId) => {
-          // FIXED: Pass callback to clear modal state after deletion
-          appointments.initiateDeleteAppointment(appointmentId, async () => {
-            setShowAppointmentModal(false);
-            setSelectedAppointment(null);
-            await handleGlobalRefresh(true); // Silent refresh after delete
-          });
-        }}
-        onViewConversation={handleViewConversation}
-      />
-
-      <ConfirmationModal
-        isOpen={appointments.showDeleteConfirmation}
-        title="Delete Appointment"
-        message="Are you sure you want to delete this appointment? This action cannot be undone."
-        confirmText="Delete"
-        cancelText="Cancel"
-        confirmButtonClass="bg-red-600 text-white hover:bg-red-700"
-        onConfirm={appointments.confirmDeleteAppointment}
-        onCancel={appointments.cancelDeleteAppointment}
-      />
-
-      <NotificationModal
-        notification={notification}
-        onClose={() => setNotification(null)}
-      />
-    </div>
-  );
-
-  // Desktop: Full dashboard layout with all features
-  const DesktopAdminPanel = () => (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-gray-900 to-slate-800">
-      <Header onLogout={handleLogout} onRefresh={handleGlobalRefresh} isRefreshing={isRefreshing} />
-      
-      <Navigation activeTab={activeTab} onTabChange={setActiveTab} />
-
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        {renderTabContent()}
-      </div>
-
-      <AppointmentModal
-        appointment={selectedAppointment}
-        isOpen={showAppointmentModal}
-        onClose={handleCloseAppointmentModal}
-        onEdit={(appointment) => {
-          appointments.openEditModal(appointment);
-          setShowAppointmentModal(false);
-        }}
-        onDelete={(appointmentId) => {
-          // FIXED: Pass callback to clear modal state after deletion
-          appointments.initiateDeleteAppointment(appointmentId, async () => {
-            setShowAppointmentModal(false);
-            setSelectedAppointment(null);
-            await handleGlobalRefresh(true); // Silent refresh after delete
-          });
-        }}
-        onViewConversation={handleViewConversation}
-      />
-
-      <ConfirmationModal
-        isOpen={appointments.showDeleteConfirmation}
-        title="Delete Appointment"
-        message="Are you sure you want to delete this appointment? This action cannot be undone."
-        confirmText="Delete"
-        cancelText="Cancel"
-        confirmButtonClass="bg-red-600 text-white hover:bg-red-700"
-        onConfirm={appointments.confirmDeleteAppointment}
-        onCancel={appointments.cancelDeleteAppointment}
-      />
-
-      <NotificationModal
-        notification={notification}
-        onClose={() => setNotification(null)}
-      />
-    </div>
-  );
-
   return (
-    <>
-      <ResponsiveWrapper
-        mobile={<MobileAdminPanel />}
-        tablet={<TabletAdminPanel />}
-        desktop={<DesktopAdminPanel />}
-      />
+    <div className="h-screen w-screen bg-slate-900 flex flex-col overflow-hidden">
+      {/* Loading State */}
+      {isLoading && (
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-blue-950 to-indigo-950 flex items-center justify-center z-50">
+          <div className="text-center">
+            {/* Animated Loading Spinner */}
+            <div className="relative w-20 h-20 mx-auto mb-6">
+              <div className="absolute inset-0 border-4 border-blue-500/20 rounded-full"></div>
+              <div className="absolute inset-0 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+            </div>
 
-      {/* Modals outside responsive wrapper to prevent unmounting */}
-      <EditAppointmentModal
-        editingAppointment={appointments.editingAppointment}
-        editForm={appointments.editForm}
-        isLoading={appointments.isLoading}
-        onClose={appointments.closeEditModal}
-        onSave={appointments.saveEditedAppointment}
-        onFormChange={appointments.handleEditFormChange}
+            {/* Loading Text */}
+            <h2 className="text-white text-2xl font-semibold mb-2">
+              Loading Admin Panel
+            </h2>
+            <p className="text-gray-400 text-sm">
+              Connecting to AutoAssistPro...
+            </p>
+
+            {/* Branding */}
+            <div className="mt-8 pt-8 border-t border-white/10">
+              <p className="text-gray-500 text-xs">
+                Powered by AutoAssistPro
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Error State */}
+      {hasError && (
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-red-950 to-slate-900 flex items-center justify-center z-50">
+          <div className="text-center max-w-md px-6">
+            {/* Error Icon */}
+            <div className="w-20 h-20 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+              <svg
+                className="w-10 h-10 text-red-500"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </div>
+
+            {/* Error Message */}
+            <h2 className="text-white text-2xl font-semibold mb-3">
+              Failed to Load Admin Panel
+            </h2>
+            <p className="text-gray-400 mb-2">
+              Unable to connect to AutoAssistPro services.
+            </p>
+            <p className="text-gray-500 text-sm mb-8">
+              Please check your internet connection and try again.
+            </p>
+
+            {/* Action Buttons */}
+            <div className="flex gap-4 justify-center">
+              <button
+                onClick={() => window.location.reload()}
+                className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors shadow-lg hover:shadow-xl"
+              >
+                Retry
+              </button>
+              <button
+                onClick={() => window.location.href = '/'}
+                className="px-8 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-medium transition-colors"
+              >
+                Go Home
+              </button>
+            </div>
+
+            {/* Support Info */}
+            <div className="mt-8 pt-8 border-t border-white/10">
+              <p className="text-gray-500 text-xs">
+                If the problem persists, please contact support
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Admin Panel iframe */}
+      <iframe
+        src={adminUrl}
+        className="w-full h-full border-0"
+        title="AutoAssistPro Admin Panel"
+        onLoad={handleIframeLoad}
+        onError={handleIframeError}
+        allow="clipboard-write; clipboard-read"
+        sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals allow-downloads"
+        style={{
+          display: isLoading || hasError ? 'none' : 'block',
+          colorScheme: 'dark'
+        }}
       />
-    </>
+    </div>
   );
 }

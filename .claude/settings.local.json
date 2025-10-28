@@ -2,7 +2,12 @@
   "permissions": {
     "allow": [
       "Bash(npm run build:*)",
-      "Bash(node scripts/generate-icons.js:*)"
+      "Bash(node scripts/generate-icons.js:*)",
+      "Bash(curl:*)",
+      "Bash(git log:*)",
+      "Bash(node -c:*)",
+      "Bash(cat:*)",
+      "Read(//c/Users/Renan/autoassistpro-frontend/**)"
     ],
     "deny": [],
     "ask": []
