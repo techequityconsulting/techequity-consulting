@@ -15,7 +15,12 @@ export const Header = () => {
   const touchTargetSize = getTouchTargetSize(deviceType);
 
   const scrollToSection = (sectionId: string) => {
-    document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth' });
+    if (typeof window !== 'undefined') {
+      const element = document.getElementById(sectionId);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
     setMobileMenuOpen(false);
   };
 

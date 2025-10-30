@@ -14,7 +14,12 @@ export const HeroSection = () => {
   const spacing = getSpacing(deviceType, 'lg');
 
   const scrollToContact = () => {
-    document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' });
+    if (typeof window !== 'undefined') {
+      const element = document.getElementById('contact');
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
   };
 
   // Mobile: Vertical layout, larger touch targets, simplified text

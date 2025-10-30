@@ -60,6 +60,7 @@ export const AboutSection = () => {
               alt="Gabriel Cook, Founder of TechEquity Consulting"
               fill
               className="object-cover"
+              sizes="(max-width: 768px) 100vw, 600px"
               priority
             />
           </div>
@@ -160,6 +161,7 @@ export const AboutSection = () => {
                 alt="Gabriel Cook, Founder of TechEquity Consulting"
                 fill
                 className="object-cover"
+                sizes="(max-width: 768px) 100vw, 288px"
                 priority
               />
             </div>
@@ -264,6 +266,7 @@ export const AboutSection = () => {
                 alt="Gabriel Cook, Founder of TechEquity Consulting"
                 fill
                 className="object-cover"
+                sizes="384px"
                 priority
               />
             </div>
